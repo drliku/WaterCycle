@@ -3,7 +3,7 @@ import ControlPanel from './ui/ControlPanel.jsx'
 import { ProcessPanel, InfoCard } from './ui/ProcessPanel.jsx'
 import MoleculeViewer from './ui/MoleculeViewer.jsx'
 import { useSim } from './sim/store.js'
-import { DropIcon } from './ui/Icons.jsx'
+import brainMark from './assets/brain-mark.png'
 
 function Readouts() {
   const snap = useSim((s) => s.snapshot)
@@ -34,13 +34,15 @@ export default function App() {
 
       <div className="overlay left">
         <header className="title-card panel">
-          <div className="logo">
-            <DropIcon />
+          <div className="wordmark">
+            <h1>Water Cycle</h1>
+            <div className="wordmark-sub">
+              <span className="rule" />
+              <span>Simulator</span>
+            </div>
+            <p>By The Brain Maze · drag to orbit, scroll to zoom</p>
           </div>
-          <div>
-            <h1>Water Cycle Simulator</h1>
-            <p>Drag to orbit · scroll to zoom</p>
-          </div>
+          <img className="mark" src={brainMark} alt="The Brain Maze logo" width="64" height="64" />
         </header>
         <Readouts />
         <ControlPanel />

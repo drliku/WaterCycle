@@ -45,8 +45,3 @@ export const CloseIcon = (p) => (
     <path d="M6 6l12 12M18 6L6 18" />
   </svg>
 )
-export const DropIcon = (p) => (
-  <svg {...base} {...p}>
-    <path d="M12 2.8C8 8 5.5 11.4 5.5 14.6a6.5 6.5 0 0 0 13 0c0-3.2-2.5-6.6-6.5-11.8z" fill="currentColor" stroke="none" />
-  </svg>
-)
