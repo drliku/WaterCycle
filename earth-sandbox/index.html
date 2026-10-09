@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Shape continents, change the climate and watch rivers, forests, deserts and ice sheets evolve." />
+    <title>Earth Sandbox</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="fonts.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="map" aria-label="World map. Drag with a tool to edit the terrain and climate."></canvas>
+
+      <!-- brand + clock -->
+      <header class="topbar">
+        <img class="mark" src="assets/brain-mark.png" alt="The Brain Maze" width="44" height="44" />
+        <div class="brand">
+          <h1>Earth Sandbox</h1>
+          <p>By The Brain Maze</p>
+        </div>
+        <div class="clock">
+          <span class="label">Year</span>
+          <strong id="year">0</strong>
+          <span id="runState" class="run-state">Running</span>
+        </div>
+      </header>
+
+      <!-- right control panel -->
+      <aside class="panel side" id="sidePanel">
+        <section>
+          <h2>Climate</h2>
+          <div class="field">
+            <label for="globalTemp">Global temperature <output id="globalTempOut">+0.0 °C</output></label>
+            <input id="globalTemp" type="range" min="-10" max="10" step="0.5" value="0" class="range temp" />
+            <div class="scale"><span>−10 °C</span><span>today</span><span>+10 °C</span></div>
+          </div>
+          <div class="field">
+            <label for="rainfall">Rainfall <output id="rainfallOut">100%</output></label>
+            <input id="rainfall" type="range" min="25" max="250" step="5" value="100" class="range rain" />
+            <div class="scale"><span>25%</span><span>100%</span><span>250%</span></div>
+          </div>
+          <div class="field">
+            <label for="seaLevel">Sea level <output id="seaLevelOut">+0 m</output></label>
+            <input id="seaLevel" type="range" min="-200" max="200" step="5" value="0" class="range sea" />
+            <p class="note" id="seaNote">Actual sea level: +0 m</p>
+          </div>
+        </section>
+
+        <section>
+          <h2>Simulation</h2>
+          <div class="field">
+            <label for="speed">Speed <output id="speedOut">1×</output></label>
+            <input id="speed" type="range" min="0" max="5" step="1" value="2" class="range plain" />
+            <div class="scale"><span>0.25×</span><span>1×</span><span>8×</span></div>
+          </div>
+          <div class="buttons">
+            <button id="playBtn" class="btn primary" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path class="ico-pause" d="M8 5v14M16 5v14" /><path class="ico-play" d="M7 4.5v15l12-7.5z" /></svg>
+              <span>Pause</span>
+            </button>
+            <button id="newWorldBtn" class="btn" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c2.6 2.4 3.8 5.2 3.8 8.5s-1.2 6.1-3.8 8.5c-2.6-2.4-3.8-5.2-3.8-8.5s1.2-6.1 3.8-8.5z" /></svg>
+              <span>New world</span>
+            </button>
+          </div>
+          <button id="resetBtn" class="btn ghost wide" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7" /><path d="M4 4v4.5h4.5" /></svg>
+            <span>Reset world</span>
+          </button>
+        </section>
+
+        <section>
+          <h2>Map view</h2>
+          <div class="segmented" id="viewSeg" role="radiogroup" aria-label="Map view">
+            <button type="button" data-view="biome" class="on">Biomes</button>
+            <button type="button" data-view="temp">Temp</button>
+            <button type="button" data-view="rain">Rain</button>
+            <button type="button" data-view="elev">Height</button>
+          </div>
+          <div id="legend" class="legend"></div>
+        </section>
+
+        <section>
+          <h2>World stats</h2>
+          <div class="stats">
+            <div><span>Mean temp</span><strong id="statTemp">–</strong></div>
+            <div><span>Land</span><strong id="statLand">–</strong></div>
+            <div><span>Forest</span><strong id="statForest">–</strong></div>
+            <div><span>Desert</span><strong id="statDesert">–</strong></div>
+            <div><span>Snow &amp; ice</span><strong id="statIce">–</strong></div>
+            <div><span>Rivers &amp; lakes</span><strong id="statWater">–</strong></div>
+          </div>
+        </section>
+      </aside>
+
+      <!-- tool dock -->
+      <nav class="dock panel" aria-label="Editing tools">
+        <div class="tools" id="tools">
+          <button type="button" data-tool="pan" title="Move the map (1)">
+            <svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-2.5 2.5M12 3l2.5 2.5M12 21l-2.5-2.5M12 21l2.5-2.5M3 12l2.5-2.5M3 12l2.5 2.5M21 12l-2.5-2.5M21 12l-2.5 2.5" /></svg>
+            <span>Move</span>
+          </button>
+          <button type="button" data-tool="raise" class="on" title="Raise terrain (2)">
+            <svg viewBox="0 0 24 24"><path d="M2.5 19.5l6.5-11 4 6.5 2.5-3.5 6 8z" /><path d="M17 3v6M14.5 5.5L17 3l2.5 2.5" /></svg>
+            <span>Raise</span>
+          </button>
+          <button type="button" data-tool="lower" title="Lower terrain (3)">
+            <svg viewBox="0 0 24 24"><path d="M2.5 8.5c3 0 4 8 9.5 8s6.5-8 9.5-8" /><path d="M12 2.5v7M9.5 7l2.5 2.5L14.5 7" /></svg>
+            <span>Lower</span>
+          </button>
+          <button type="button" data-tool="water" title="Add water (4)">
+            <svg viewBox="0 0 24 24"><path d="M12 3c-3.8 5-6 8.2-6 11.2a6 6 0 0 0 12 0C18 11.2 15.8 8 12 3z" /></svg>
+            <span>Water</span>
+          </button>
+          <button type="button" data-tool="temp" title="Change temperature (5)">
+            <svg viewBox="0 0 24 24"><path d="M14 14.6V4.8a2 2 0 1 0-4 0v9.8a4.2 4.2 0 1 0 4 0z" /><path d="M12 9v6.5" /></svg>
+            <span>Temp</span>
+          </button>
+          <button type="button" data-tool="rain" title="Change rainfall (6)">
+            <svg viewBox="0 0 24 24"><path d="M7 14.5a4.5 4.5 0 1 1 1.3-8.8A5.5 5.5 0 0 1 18.6 8a3.3 3.3 0 0 1-.6 6.5z" /><path d="M8.5 17.5l-1 2.5M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5" /></svg>
+            <span>Rain</span>
+          </button>
+        </div>
+        <div class="dock-sep"></div>
+        <div class="polarity" id="polarity" hidden>
+          <button type="button" data-pol="1" class="on"><span id="polPlus">Warmer</span></button>
+          <button type="button" data-pol="-1"><span id="polMinus">Colder</span></button>
+        </div>
+        <div class="brush">
+          <label for="brush">Brush <output id="brushOut">14</output></label>
+          <input id="brush" type="range" min="3" max="40" step="1" value="14" class="range plain" />
+        </div>
+      </nav>
+
+      <!-- hover inspector -->
+      <div class="inspector panel" id="inspector">
+        <div class="insp-title"><span class="swatch" id="inspSwatch"></span><strong id="inspBiome">Hover over the map</strong></div>
+        <dl>
+          <div><dt>Elevation</dt><dd id="inspElev">–</dd></div>
+          <div><dt>Temperature</dt><dd id="inspTemp">–</dd></div>
+          <div><dt>Rainfall</dt><dd id="inspRain">–</dd></div>
+          <div><dt>Water</dt><dd id="inspWater">–</dd></div>
+        </dl>
+        <p class="hint">Scroll to zoom · right-drag to move · keys 1–6 pick tools · P pauses</p>
+      </div>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      <div class="loading" id="loading"><div class="spinner"></div><span>Shaping continents…</span></div>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>
