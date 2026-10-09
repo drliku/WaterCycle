@@ -15,20 +15,21 @@
   // ---------------------------------------------------------------------------
   // Constants
   // ---------------------------------------------------------------------------
-  const W = 384
-  const H = 240
+  // 2:1 grid, so the real Earth fits as an equirectangular map (0.83° per cell)
+  const W = 432
+  const H = 216
   const N = W * H
   const M_PER_UNIT = 5000 // one elevation unit = 5 km
   const LAPSE = 6.5 // °C per km
   const SUBSTEPS = 3 // water-flow steps per tick
   const TICKS_PER_SEC = 8
   const YEARS_PER_TICK = 5
-  const RAIN_K = 2e-9 // water depth (units) per mm/yr of rain, per substep
-  const MELT_K = 4e-7 // snow melted per °C above zero, per substep
-  const LAKE_T = 0.0016 // 8 m of standing water shows as a lake
-  const RIVER_MIN = 5e-5 // flow needed to draw a river
-  const SNOW_CAP = 0.002
-  const ICE_SWE = 0.0004 // snow this deep counts as permanent ice
+  const RAIN_K = 3e-10 // water depth (units) per mm/yr of rain, per substep
+  const MELT_K = 6e-8 // snow melted per °C above zero, per substep
+  const LAKE_T = 0.002 // 10 m of standing water shows as a lake
+  const RIVER_MIN = 7.5e-6 // flow needed to draw a river
+  const SNOW_CAP = 0.0003
+  const ICE_SWE = 0.00006 // snow this deep counts as permanent ice
   const SPEEDS = [0.25, 0.5, 1, 2, 4, 8]
 
   // ---------------------------------------------------------------------------
@@ -167,10 +168,12 @@
   const tempMod = new Float32Array(N) // user-painted temperature change (°C)
   const rainMod = new Float32Array(N) // user-painted rainfall change (-1..1)
   const tmpA = new Float32Array(N)
+  const summerAmp = new Float32Array(N) // how much warmer summer is than the yearly mean
   const tNoise = new Float32Array(N) // fixed local climate variation (°C)
   const texN = new Float32Array(N) // fine surface texture for shading
 
   const state = {
+    world: 'earth', // 'earth' or 'random'
     seed: 1,
     year: 0,
     simTime: 0,
@@ -323,7 +326,7 @@
     }
 
     // Drain closed basins so rivers can reach the sea …
-    heapFill(elev, 0, 1e-5)
+    heapFill(elev, 0, 1e-4)
     // … then dig a few lake basins and fill them with water
     water.fill(0)
     let lakes = 0
@@ -353,6 +356,48 @@
       water[i] = elev[i] >= 0 && w > 2e-5 ? w : 0
     }
 
+    state.world = 'random'
+    startWorld()
+  }
+
+  // Load the real Earth: land heights from NASA-derived topography, ocean
+  // depths estimated from distance to the coast (see tools/build_earth_data.py).
+  function loadEarth() {
+    const D = window.EARTH_DATA
+    const bin = atob(D.elev)
+    const raw = new Int16Array(N)
+    for (let i = 0; i < N; i++) {
+      const v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8)
+      raw[i] = v > 32767 ? v - 65536 : v
+    }
+    const n4 = makePerlin(4242)
+    const n5 = makePerlin(4343)
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x
+        elev[i] = raw[i] / M_PER_UNIT
+        tNoise[i] = fbm(n4, x / 40, y / 40, 3) * 2.5
+        texN[i] = fbm(n5, x / 5, y / 5, 2)
+      }
+    }
+    // Lakes: lift each lake to its surface, drain the land, then put the
+    // lake bed back and fill it with water.
+    const lakes = D.lakes
+    for (let k = 0; k < lakes.length; k += 2) elev[lakes[k]] += lakes[k + 1] / M_PER_UNIT
+    heapFill(elev, 0, 1e-4)
+    water.fill(0)
+    for (let k = 0; k < lakes.length; k += 2) {
+      const i = lakes[k]
+      const surface = elev[i]
+      const bed = Math.max(surface - lakes[k + 1] / M_PER_UNIT, 0.0004)
+      elev[i] = bed
+      water[i] = surface - bed
+    }
+    state.world = 'earth'
+    startWorld()
+  }
+
+  function startWorld() {
     tempMod.fill(0)
     rainMod.fill(0)
     flux.fill(0)
@@ -375,7 +420,7 @@
       pet[i] = pet_of(temp[i])
       const land = elev[i] >= state.seaLevel
       if (land) {
-        snow[i] = temp[i] < -0.5 ? 0.001 : 0
+        snow[i] = temp[i] + summerAmp[i] < -0.5 ? 0.00015 : 0
         veg[i] = vegTarget(i)
         seaIce[i] = 0
       } else {
@@ -422,11 +467,18 @@
 
   function computeClimate() {
     const sea = state.seaLevel
+    if (summerAmp[0] === 0) {
+      // seasons are stronger toward the poles
+      for (let y = 0; y < H; y++) {
+        const a = Math.abs(latOf(y))
+        for (let x = 0; x < W; x++) summerAmp[y * W + x] = 4 + 14 * a
+      }
+    }
     const G = state.globalTemp
     // --- temperature: latitude, altitude (lapse rate), ocean moderation
     for (let y = 0; y < H; y++) {
       const lat = latOf(y)
-      const Tlat = 26 - 47 * Math.pow(Math.abs(lat), 2.1)
+      const Tlat = 27 - 52 * lat * lat
       for (let x = 0; x < W; x++) {
         const i = y * W + x
         const e = elev[i]
@@ -510,8 +562,10 @@
       const sf = smooth(1, -1.5, T) // share falling as snow
       let s = snow[i] + p * sf
       let w = water[i] + p * (1 - sf)
-      if (T > 0 && s > 0) {
-        const m = Math.min(s, T * MELT_K)
+      // seasonal snow melts every summer unless summers stay below freezing
+      const Ts = T + summerAmp[i]
+      if (Ts > 0 && s > 0) {
+        const m = Math.min(s, Ts * MELT_K)
         s -= m
         w += m
       }
@@ -568,16 +622,16 @@
   const peff = (i) =>
     rain[i] + 1500 * smooth(RIVER_MIN * 0.6, RIVER_MIN * 6, flux[i]) + (water[i] > LAKE_T ? 500 : 0)
   const moistureIndex = (i) => peff(i) / pet[i]
-  const snowCover = (i) => smooth(0, 0.00012, snow[i])
+  const snowCover = (i) => smooth(0, 0.000018, snow[i])
 
   function vegTarget(i) {
     const T = temp[i]
     const M = moistureIndex(i)
     return (
       smooth(0.08, 0.6, M) * // enough water?
-      smooth(-14, -4, T) * // warm enough to grow?
+      smooth(-17, -8, T) * // warm enough to grow?
       (1 - smooth(38, 52, T)) * // too hot?
-      (1 - 0.6 * (1 - smooth(-6, 0, T))) * // tundra stays sparse
+      (1 - 0.6 * (1 - smooth(-12, -5, T))) * // tundra stays sparse
       (1 - snowCover(i) * 0.85) *
       (1 - smooth(3800, 5200, (elev[i] - state.seaLevel) * M_PER_UNIT))
     )
@@ -622,8 +676,8 @@
       // slow river erosion carves valleys (never below the next cell downstream)
       const f = flux[i]
       const d = dir[i]
-      if (f > 1.2e-4 && d >= 0) {
-        const ne = elev[i] - 2.5e-6 * Math.min(f / 1.2e-4, 4)
+      if (f > 1.8e-5 && d >= 0) {
+        const ne = elev[i] - 2.5e-6 * Math.min(f / 1.8e-5, 4)
         if (ne > elev[d] + 1e-5 && ne > sea + 0.001) elev[i] = ne
       }
     }
@@ -670,8 +724,8 @@
     const T = temp[i]
     const M = moistureIndex(i)
     const v = veg[i]
-    const a = smooth(-6, 0, T)
-    const b = smooth(2, 9, T)
+    const a = smooth(-12, -5, T)
+    const b = smooth(1, 8, T)
     const c = smooth(16, 23, T)
     const wTun = 1 - a
     const wBor = a - b
@@ -716,8 +770,8 @@
     const alt = (elev[i] - sea) * M_PER_UNIT
     if (alt > 3000 && veg[i] < 0.35) return 'Alpine rock'
     const M = moistureIndex(i)
-    if (T < -4) return 'Tundra'
-    if (T < 4) return M > 0.55 ? 'Taiga' : 'Cold steppe'
+    if (T < -9) return 'Tundra'
+    if (T < 4) return M > 0.45 ? 'Taiga' : 'Cold steppe'
     if (T < 18) {
       if (M < 0.2) return 'Cold desert'
       if (M < 0.55) return 'Grassland'
@@ -766,8 +820,8 @@
   // alpha never changes: fill it once
   for (let k = 3; k < BW * BH * 4; k += 4) px[k] = 255
 
-  const CW = 192
-  const CH = 120
+  const CW = 216
+  const CH = 108
   const cloudCanvas = document.createElement('canvas')
   cloudCanvas.width = CW
   cloudCanvas.height = CH
@@ -1071,7 +1125,7 @@
       ctx.lineJoin = 'round'
       ctx.strokeStyle = 'rgb(58,136,204)'
       for (let b = 0; b < RIVER_BUCKETS; b++) {
-        ctx.lineWidth = 0.4 + b * 0.3
+        ctx.lineWidth = 0.3 + b * 0.22
         ctx.stroke(riverPaths[b])
       }
       // flowing highlights
@@ -1287,7 +1341,9 @@
     // let the overlay paint before the heavy work starts
     requestAnimationFrame(() =>
       setTimeout(() => {
-        generate(seed)
+        if (seed === 'earth') loadEarth()
+        else generate(seed)
+        updateWorldButtons()
         needsPaint = true
         riversDirty = true
         cloudFrame = 0
@@ -1298,12 +1354,20 @@
   }
   $('newWorldBtn').addEventListener('click', () => {
     resetControls()
-    rebuild(Math.floor(Math.random() * 1e9), 'A new world has formed.')
+    rebuild(Math.floor(Math.random() * 1e9), 'A new random world has formed.')
+  })
+  $('earthBtn').addEventListener('click', () => {
+    resetControls()
+    rebuild('earth', 'Loaded the real Earth.')
   })
   $('resetBtn').addEventListener('click', () => {
     resetControls()
-    rebuild(state.seed, 'World reset to how it began.')
+    rebuild(state.world === 'earth' ? 'earth' : state.seed, 'World reset to how it began.')
   })
+  function updateWorldButtons() {
+    $('earthBtn').classList.toggle('on', state.world === 'earth')
+    $('newWorldBtn').classList.toggle('on', state.world === 'random')
+  }
 
   // tools
   const TOOL_HINTS = {
@@ -1412,7 +1476,7 @@
           continue
         }
         if (water[i] > LAKE_T || flux[i] > RIVER_MIN) wet++
-        if (veg[i] > 0.55 && temp[i] > -4) forest++
+        if (veg[i] > 0.55 && temp[i] > -9) forest++
         else if (veg[i] < 0.15 && temp[i] > 0 && moistureIndex(i) < 0.25) desert++
       }
     }
@@ -1443,6 +1507,9 @@
     const i = y * W + x
     const sea = state.seaLevel
     $('inspBiome').textContent = biomeName(i)
+    const latDeg = 90 - ((y + 0.5) / H) * 180
+    const lonDeg = ((x + 0.5) / W) * 360 - 180
+    $('inspLoc').textContent = `${Math.abs(latDeg).toFixed(0)}°${latDeg >= 0 ? 'N' : 'S'}, ${Math.abs(lonDeg).toFixed(0)}°${lonDeg >= 0 ? 'E' : 'W'}`
     const wet = wetF[i] > 0
     const sw = wet ? [watR[i], watG[i], watB[i]] : [landR[i], landG[i], landB[i]]
     $('inspSwatch').style.background = `rgb(${sw[0] | 0},${sw[1] | 0},${sw[2] | 0})`
@@ -1454,7 +1521,7 @@
     if (elev[i] < sea) wtxt = seaIce[i] > 0.5 ? 'Frozen sea' : 'Sea'
     else if (water[i] > LAKE_T) wtxt = `Lake, ${Math.round(water[i] * M_PER_UNIT)} m deep`
     else if (flux[i] > RIVER_MIN) wtxt = flux[i] > RIVER_MIN * 8 ? 'Large river' : 'Stream'
-    else if (snow[i] > 0.00002) wtxt = `Snow ${Math.round(snow[i] * M_PER_UNIT * 10) / 10} m`
+    else if (snow[i] > 0.000003) wtxt = 'Snow cover'
     else if (moistureIndex(i) > 1) wtxt = 'Moist soil'
     $('inspWater').textContent = wtxt
   }
@@ -1566,11 +1633,12 @@
   setTool('raise')
   toastEl.classList.remove('show')
   setTimeout(() => {
-    generate(Math.floor(Math.random() * 1e9))
+    loadEarth()
+    updateWorldButtons()
     needsPaint = true
     riversDirty = true
     loadingEl.classList.add('hide')
-    toast('Drag on the map to raise land. Pick other tools in the dock below.')
+    toast('This is the real Earth. Drag on the map to reshape it, or pick another tool below.')
     requestAnimationFrame(frame)
   }, 30)
   // expose for debugging in the console

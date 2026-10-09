@@ -1,7 +1,8 @@
 # Earth Sandbox
 
-A 2D world-building simulator. Shape continents, change the climate, and watch rivers, lakes,
-forests, deserts and ice sheets respond over time.
+A 2D world-building simulator. It starts on the **real Earth**: shape continents, change the
+climate, and watch rivers, lakes, forests, deserts and ice sheets respond over time. You can also
+generate random planets.
 
 Open `index.html` in a browser. There is no build step, and it works offline (the Barlow body font
 loads from Google Fonts when online and falls back to a system font).
@@ -16,14 +17,16 @@ loads from Google Fonts when online and falls back to a system font).
 | **Rainfall** | Scales precipitation from 25% to 250%. |
 | **Sea level** | Raises or lowers the ocean by up to 200 m. |
 | **Speed / Pause** | 0.25× to 8×. `P` pauses. |
-| **New world / Reset world** | Generate a fresh planet, or return to the start of the current one. |
+| **Real Earth / Random** | Load the real Earth, or generate a random planet. |
+| **Reset** | Return the current world to how it began. |
 | **Map view** | Biomes, temperature, rainfall or height. |
 
 Scroll to zoom, and right-drag (or the Move tool) to pan. Hover over the map to inspect a location.
 
 ## How the world works
 
-The map is a grid of 384 × 240 cells. Every tick the simulation updates:
+The map is a 432 × 216 grid in equirectangular projection (each cell is about 0.83° across).
+Every tick the simulation updates:
 
 - **Temperature** falls from the equator to the poles. It also drops 6.5 °C per km of altitude,
   and oceans make it milder. Painted warm or cold areas and the global slider shift it.
@@ -34,8 +37,9 @@ The map is a grid of 384 × 240 cells. Every tick the simulation updates:
   around 30° are dry.
 - **Water**: rain lands on the ground, evaporates or flows to the lowest neighbouring cell.
   The flow builds river networks and fills basins into lakes. Rivers slowly carve their valleys.
-- **Snow and ice** build up where it is below freezing and melt when it warms. Sea ice forms on
-  cold oceans.
+- **Snow and ice** fall where it is below freezing. Snow only lasts year-round where summers stay
+  below freezing, so Siberia has taiga and Greenland has an ice sheet. Sea ice forms on cold
+  oceans.
 - **Vegetation** grows toward what temperature and moisture support (rainfall compared with
   evaporation). Warm, wet land becomes forest. Hot, dry land becomes desert. Land along rivers
   stays green.
@@ -44,3 +48,21 @@ The map is a grid of 384 × 240 cells. Every tick the simulation updates:
   more than 100 m.
 
 All changes approach their new state gradually, so you can watch the world adjust.
+
+## Real Earth data
+
+`earth-data.js` holds a 432 × 216 elevation grid in metres. Land heights come from the
+NASA-derived topography and water mask images in the
+[three-globe](https://github.com/vasturiano/three-globe) package (MIT licence). Those images
+have no ocean depths, so the sea floor is estimated from distance to the coast (shelf, slope,
+abyssal plain). Rebuild the file with:
+
+```bash
+npm pack three-globe && tar -xzf three-globe-*.tgz
+python3 tools/build_earth_data.py package/example/img earth-data.js   # needs numpy and Pillow
+```
+
+The climate is a simple annual-average model. It reproduces the broad pattern: deserts near 30°,
+rainforests at the equator, dry continental interiors, rain shadows and polar ice. It leaves out
+monsoons and ocean currents, so some regions, such as India and Western Europe, come out drier
+or colder than in reality.

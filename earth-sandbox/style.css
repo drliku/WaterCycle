@@ -341,9 +341,21 @@ output {
 .btn.ghost:hover {
   background: var(--raise);
 }
-.btn.wide {
-  width: 100%;
-  margin-bottom: 12px;
+.sub-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 4px 0 6px;
+}
+.buttons.worlds {
+  margin-bottom: 14px;
+}
+.btn.ghost.on {
+  background: var(--navy);
+  border-color: rgba(243, 112, 100, 0.6);
+  box-shadow: inset 0 -2px 0 var(--coral);
 }
 
 .segmented {
@@ -667,7 +679,7 @@ output {
   #map {
     position: relative;
     height: auto;
-    aspect-ratio: 8 / 5;
+    aspect-ratio: 2 / 1;
     max-width: 100%;
     border-radius: var(--radius);
   }

@@ -62,15 +62,22 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path class="ico-pause" d="M8 5v14M16 5v14" /><path class="ico-play" d="M7 4.5v15l12-7.5z" /></svg>
               <span>Pause</span>
             </button>
-            <button id="newWorldBtn" class="btn" type="button">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c2.6 2.4 3.8 5.2 3.8 8.5s-1.2 6.1-3.8 8.5c-2.6-2.4-3.8-5.2-3.8-8.5s1.2-6.1 3.8-8.5z" /></svg>
-              <span>New world</span>
+            <button id="resetBtn" class="btn" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7" /><path d="M4 4v4.5h4.5" /></svg>
+              <span>Reset</span>
             </button>
           </div>
-          <button id="resetBtn" class="btn ghost wide" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7" /><path d="M4 4v4.5h4.5" /></svg>
-            <span>Reset world</span>
-          </button>
+          <p class="sub-label">World</p>
+          <div class="buttons worlds">
+            <button id="earthBtn" class="btn ghost" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c2.6 2.4 3.8 5.2 3.8 8.5s-1.2 6.1-3.8 8.5c-2.6-2.4-3.8-5.2-3.8-8.5s1.2-6.1 3.8-8.5z" /></svg>
+              <span>Real Earth</span>
+            </button>
+            <button id="newWorldBtn" class="btn ghost" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" /><circle cx="9" cy="9" r="1.2" /><circle cx="15" cy="15" r="1.2" /><circle cx="15" cy="9" r="1.2" /><circle cx="9" cy="15" r="1.2" /></svg>
+              <span>Random</span>
+            </button>
+          </div>
         </section>
 
         <section>
@@ -140,6 +147,7 @@
       <div class="inspector panel" id="inspector">
         <div class="insp-title"><span class="swatch" id="inspSwatch"></span><strong id="inspBiome">Hover over the map</strong></div>
         <dl>
+          <div><dt>Location</dt><dd id="inspLoc">–</dd></div>
           <div><dt>Elevation</dt><dd id="inspElev">–</dd></div>
           <div><dt>Temperature</dt><dd id="inspTemp">–</dd></div>
           <div><dt>Rainfall</dt><dd id="inspRain">–</dd></div>
@@ -151,6 +159,7 @@
       <div class="toast" id="toast" role="status" aria-live="polite"></div>
       <div class="loading" id="loading"><div class="spinner"></div><span>Shaping continents…</span></div>
     </div>
+    <script src="earth-data.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
