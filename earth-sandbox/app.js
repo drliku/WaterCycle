@@ -406,6 +406,7 @@
     snow.fill(0)
     state.year = 0
     state.tickCount = 0
+    state.habRef = null
     state.seaLevel = state.seaSlider / M_PER_UNIT
     spinUp()
   }
@@ -637,6 +638,27 @@
     )
   }
 
+  // How well could people live here? 0 (impossible) … 1 (ideal).
+  // Mild temperatures, fresh water, breathable altitude, no permanent ice,
+  // and plants (food) all help; steamy rainforest is a little harder.
+  const hab = { t: 0, w: 0, a: 0, i: 0 }
+  function habitability(i) {
+    if (elev[i] < state.seaLevel || water[i] > LAKE_T) {
+      hab.t = hab.w = hab.a = hab.i = 0
+      return 0
+    }
+    const T = temp[i]
+    const M = moistureIndex(i)
+    // yearly means above ~25 °C bring dangerous heat; by ~35 °C it is unliveable
+    hab.t = smooth(-12, 10, T) * (1 - smooth(23, 35, T))
+    hab.w = smooth(0.1, 0.65, M)
+    hab.a = 1 - smooth(2500, 4800, (elev[i] - state.seaLevel) * M_PER_UNIT)
+    hab.i = 1 - snowCover(i)
+    const food = 0.55 + 0.45 * veg[i]
+    const jungle = 1 - 0.25 * smooth(2, 4, M) * smooth(22, 28, T)
+    return hab.t * hab.w * hab.a * hab.i * food * jungle
+  }
+
   function countIce() {
     let n = 0
     for (let i = 0; i < N; i++) if (elev[i] >= state.seaLevel && snow[i] > ICE_SWE) n++
@@ -702,6 +724,7 @@
   }
   const OCEAN = [[0, 104, 192, 202], [60, 66, 162, 192], [250, 40, 122, 174], [1500, 22, 76, 132], [5000, 12, 40, 88]]
   const TEMP_RAMP = [[-35, 44, 44, 124], [-20, 60, 94, 192], [-8, 112, 166, 226], [0, 218, 236, 246], [10, 242, 226, 142], [20, 246, 172, 82], [30, 226, 96, 56], [42, 160, 32, 42]]
+  const HAB_RAMP = [[0, 84, 40, 50], [0.15, 150, 64, 56], [0.35, 214, 128, 64], [0.55, 230, 198, 92], [0.75, 134, 196, 96], [1, 40, 156, 102]]
   const RAIN_RAMP = [[0, 166, 116, 66], [200, 214, 186, 112], [500, 202, 212, 122], [1000, 112, 182, 102], [1800, 42, 142, 112], [2800, 40, 102, 172], [4200, 56, 62, 156]]
   const ELEV_LAND = [[0, 72, 142, 82], [300, 132, 172, 92], [1000, 204, 192, 112], [2000, 172, 132, 90], [3500, 142, 122, 112], [5000, 246, 246, 246]]
   const ELEV_SEA = [[0, 150, 210, 236], [500, 84, 150, 210], [2500, 40, 92, 168], [5000, 20, 44, 104]]
@@ -885,6 +908,11 @@
           col2[0] = col[0] * 0.72
           col2[1] = col[1] * 0.72
           col2[2] = col[2] * 0.78
+        } else if (view === 'hab') {
+          ramp(HAB_RAMP, habitability(i), col)
+          col2[0] = 14
+          col2[1] = 26
+          col2[2] = 48
         } else if (view === 'rain') {
           ramp(RAIN_RAMP, rain[i], col)
           col2[0] = col[0] * 0.35 + 10
@@ -1433,6 +1461,9 @@
     } else if (state.view === 'temp') {
       el.innerHTML = `<div class="bar" style="background:${gradientCss(TEMP_RAMP, -35, 42)}"></div>
         <div class="ticks"><span>−35 °C</span><span>0 °C</span><span>+20 °C</span><span>+42 °C</span></div>`
+    } else if (state.view === 'hab') {
+      el.innerHTML = `<div class="bar" style="background:${gradientCss(HAB_RAMP, 0, 1)}"></div>
+        <div class="ticks"><span>Uninhabitable</span><span>Harsh</span><span>Ideal for people</span></div>`
     } else if (state.view === 'rain') {
       el.innerHTML = `<div class="bar" style="background:${gradientCss(RAIN_RAMP, 0, 4200)}"></div>
         <div class="ticks"><span>0</span><span>1,000</span><span>2,500</span><span>4,200 mm/yr</span></div>`
@@ -1449,6 +1480,53 @@
   }
   viewButtons.forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)))
 
+  // habitability meter
+  const CELL_KM2 = (40075 / W) * (20004 / H) // area of a cell at the equator
+  const RATINGS = [
+    [70, 'Thriving', '#2f9c66'],
+    [50, 'Comfortable', '#7fb85a'],
+    [35, 'Challenging', '#d8b24a'],
+    [20, 'Harsh', '#d9773f'],
+    [0, 'Hostile', '#b8443c'],
+  ]
+  const fmtMkm2 = (km2) => `${(km2 / 1e6).toFixed(1)}M km²`
+  function renderHabitability(score, liveable, landArea, okT, okW, okI) {
+    // the reference is taken once the freshly loaded world has settled
+    const settling = state.habRef === null && state.tickCount < 48
+    if (state.habRef === null && !settling) state.habRef = { score, liveable }
+    const ref = state.habRef || { score, liveable }
+    const rating = RATINGS.find((r) => score >= r[0])
+    $('habScore').textContent = Math.round(score)
+    const rEl = $('habRating')
+    rEl.textContent = rating[1]
+    rEl.style.background = rating[2]
+    const pctScore = clamp(score, 0, 100)
+    $('habDim').style.left = `${pctScore}%`
+    $('habNow').style.left = `${pctScore}%`
+    $('habStart').style.left = `${clamp(ref.score, 0, 100)}%`
+    $('habStart').hidden = settling
+    const d = score - ref.score
+    const dEl = $('habDelta')
+    dEl.textContent = settling
+      ? 'Measuring the starting world…'
+      : Math.abs(d) < 0.5
+        ? 'Same as at the start'
+        : `${d > 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(0)} since the start`
+    dEl.className = `hab-delta ${Math.abs(d) < 0.5 ? '' : d > 0 ? 'up' : 'down'}`
+    const dl = liveable - ref.liveable
+    $('habLand').textContent = `Liveable land: ${fmtMkm2(liveable)}${!settling && Math.abs(dl) >= 0.05e6 ? ` (${dl > 0 ? '+' : '−'}${fmtMkm2(Math.abs(dl))})` : ''}`
+    const share = (v) => (landArea ? Math.round((v / landArea) * 100) : 0)
+    for (const [id, v] of [
+      ['habT', okT],
+      ['habW', okW],
+      ['habI', okI],
+    ]) {
+      const p = share(v)
+      $(id).style.width = `${p}%`
+      $(`${id}v`).textContent = `${p}%`
+    }
+  }
+
   // stats
   function updateStats() {
     const sea = state.seaLevel
@@ -1459,8 +1537,15 @@
     let desert = 0
     let ice = 0
     let wet = 0
+    let habSum = 0
+    let landArea = 0
+    let liveable = 0
+    let okT = 0
+    let okW = 0
+    let okI = 0
     for (let y = 0; y < H; y++) {
       const wLat = Math.cos(latOf(y) * Math.PI * 0.5)
+      const cellKm2 = CELL_KM2 * wLat
       for (let x = 0; x < W; x++) {
         const i = y * W + x
         tSum += temp[i] * wLat
@@ -1470,6 +1555,15 @@
           continue
         }
         land++
+        const h = habitability(i)
+        if (water[i] <= LAKE_T) {
+          landArea += cellKm2
+          habSum += h * cellKm2
+          if (h > 0.45) liveable += cellKm2
+          if (hab.t > 0.6) okT += cellKm2
+          if (hab.w > 0.5) okW += cellKm2
+          if (hab.i > 0.5) okI += cellKm2
+        }
         const sc = snowCover(i)
         if (sc > 0.5) {
           ice++
@@ -1487,6 +1581,7 @@
     $('statDesert').textContent = pct(desert, land)
     $('statIce').textContent = pct(ice, N)
     $('statWater').textContent = pct(wet, land)
+    renderHabitability(landArea ? (habSum / landArea) * 100 : 0, liveable, landArea, okT, okW, okI)
     const actual = state.seaLevel * M_PER_UNIT
     const iceTerm = state.seaTargetM - state.seaSlider - 0.6 * state.globalTemp
     let why = ''
@@ -1524,6 +1619,8 @@
     else if (snow[i] > 0.000003) wtxt = 'Snow cover'
     else if (moistureIndex(i) > 1) wtxt = 'Moist soil'
     $('inspWater').textContent = wtxt
+    const hv = habitability(i)
+    $('inspHab').textContent = elev[i] < sea || water[i] > LAKE_T ? '–' : `${Math.round(hv * 100)} / 100`
   }
 
   // pointer & keyboard

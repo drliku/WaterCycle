@@ -360,7 +360,7 @@ output {
 
 .segmented {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 3px;
   padding: 3px;
   background: var(--bg);
@@ -385,6 +385,118 @@ output {
   background: var(--navy);
   color: #fff;
   box-shadow: inset 0 -2px 0 var(--coral);
+}
+
+/* ---------- habitability ---------- */
+.hab-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.hab-head strong {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 40px;
+  line-height: 0.9;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.hab-max {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--ink-faint);
+}
+.hab-rating {
+  margin-left: auto;
+  align-self: center;
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  padding: 4px 8px 3px;
+  border-radius: 3px;
+  background: var(--raise);
+}
+.hab-meter {
+  position: relative;
+  height: 12px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #b8443c, #d9773f 25%, #d8b24a 45%, #7fb85a 65%, #2f9c66);
+  margin: 4px 0 8px;
+}
+.hab-dim {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 50%;
+  background: rgba(11, 17, 32, 0.72);
+  border-radius: 0 3px 3px 0;
+  transition: left 0.6s ease;
+}
+.hab-now {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 4px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: var(--ink);
+  box-shadow: 0 0 0 2px var(--panel-solid);
+  transition: left 0.6s ease;
+}
+.hab-start {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 0;
+  border-left: 2px dotted rgba(233, 237, 247, 0.6);
+}
+.hab-delta {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.hab-delta.up {
+  color: #6fd39b;
+}
+.hab-delta.down {
+  color: var(--coral);
+}
+.hab-factors {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 12px;
+}
+.hab-factors > div {
+  display: grid;
+  grid-template-columns: 96px 1fr 36px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.hab-factors b {
+  text-align: right;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.mini {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--raise);
+  overflow: hidden;
+}
+.mini i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #7fb85a;
+  border-radius: inherit;
+  transition: width 0.6s ease;
 }
 
 .legend {

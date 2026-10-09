@@ -19,7 +19,8 @@ loads from Google Fonts when online and falls back to a system font).
 | **Speed / Pause** | 0.25× to 8×. `P` pauses. |
 | **Real Earth / Random** | Load the real Earth, or generate a random planet. |
 | **Reset** | Return the current world to how it began. |
-| **Map view** | Biomes, temperature, rainfall or height. |
+| **Map view** | Biomes, temperature, rainfall, height, or People (habitability). |
+| **Habitability meter** | How liveable the land is for humans (0–100), the change since the world started, and liveable land area. |
 
 Scroll to zoom, and right-drag (or the Move tool) to pan. Hover over the map to inspect a location.
 
@@ -46,6 +47,12 @@ Every tick the simulation updates:
 - **Sea level** follows the slider, plus thermal expansion, plus water released from or locked
   into land ice. Melting all the land ice adds about 70 m. A new ice age can lower the sea by
   more than 100 m.
+
+- **Habitability** rates each land cell for people from 0 to 1. Mild yearly temperatures
+  (about 10–23 °C) score best, and dangerous heat sets in above about 25 °C. The other factors
+  are fresh water from rain, rivers and lakes; altitude (thin air above about 2.5 km);
+  permanent ice; and vegetation for food. The meter is the land-area-weighted average, and
+  "liveable land" counts cells scoring above 0.45.
 
 All changes approach their new state gradually, so you can watch the world adjust.
 

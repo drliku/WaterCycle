@@ -31,6 +31,26 @@
 
       <!-- right control panel -->
       <aside class="panel side" id="sidePanel">
+        <section class="hab">
+          <h2>Habitability</h2>
+          <div class="hab-head">
+            <strong id="habScore">–</strong><span class="hab-max">/ 100</span>
+            <span class="hab-rating" id="habRating">–</span>
+          </div>
+          <div class="hab-meter" role="img" aria-label="Habitability meter">
+            <div class="hab-dim" id="habDim"></div>
+            <div class="hab-start" id="habStart" title="Habitability at the start"></div>
+            <div class="hab-now" id="habNow"></div>
+          </div>
+          <p class="hab-delta" id="habDelta">–</p>
+          <p class="note" id="habLand">Liveable land: –</p>
+          <div class="hab-factors">
+            <div><span>Mild climate</span><div class="mini"><i id="habT"></i></div><b id="habTv">–</b></div>
+            <div><span>Fresh water</span><div class="mini"><i id="habW"></i></div><b id="habWv">–</b></div>
+            <div><span>Ice-free land</span><div class="mini"><i id="habI"></i></div><b id="habIv">–</b></div>
+          </div>
+        </section>
+
         <section>
           <h2>Climate</h2>
           <div class="field">
@@ -87,6 +107,7 @@
             <button type="button" data-view="temp">Temp</button>
             <button type="button" data-view="rain">Rain</button>
             <button type="button" data-view="elev">Height</button>
+            <button type="button" data-view="hab">People</button>
           </div>
           <div id="legend" class="legend"></div>
         </section>
@@ -152,6 +173,7 @@
           <div><dt>Temperature</dt><dd id="inspTemp">–</dd></div>
           <div><dt>Rainfall</dt><dd id="inspRain">–</dd></div>
           <div><dt>Water</dt><dd id="inspWater">–</dd></div>
+          <div><dt>Habitability</dt><dd id="inspHab">–</dd></div>
         </dl>
         <p class="hint">Scroll to zoom · right-drag to move · keys 1–6 pick tools · P pauses</p>
       </div>
